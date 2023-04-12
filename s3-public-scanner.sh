@@ -16,7 +16,7 @@ done
 
 
 echo "-------------------------------"
-echo "Adult Bucket Finder is a tool that enumerates S3 Buckets in an AWS account to see if any are public." 
+echo "S3 Public Scanner is a tool that enumerates S3 Buckets in an AWS account to see if any are public." 
 echo "If they are public, it will be echoed to the screen in green writing as well as saved to 'targets.txt' for manual enumeration." 
 echo "Enjoy! -Tyler Ramsbey"
 echo "-------------------------------"
