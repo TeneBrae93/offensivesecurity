@@ -1,4 +1,5 @@
 #!/bin/bash
+# Special shout out to Graham Helton where I first discovered this - https://www.grahamhelton.com/blog/scarecrow/
 
 sudo apt-get install golang
 
