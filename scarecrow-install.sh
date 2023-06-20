@@ -1,5 +1,6 @@
 #!/bin/bash
 # Special shout out to Graham Helton where I first discovered this - https://www.grahamhelton.com/blog/scarecrow/
+# Video which demonstrates AV Bypass with this tool -- https://youtu.be/HmiAddzFFac 
 
 sudo apt-get install golang
 
