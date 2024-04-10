@@ -12,16 +12,16 @@ def main():
 
     target_domain = sys.argv[1]
     username = sys.argv[2]
-    password = sys.argv[3]
+    apikey = sys.argv[3]
 
     url = f"https://api.dehashed.com/search?query=domain:{target_domain}&size=10000"
     url = url.replace("[DOMAIN]", target_domain)
     url = url.replace("[USERNAME]", username)
-    url = url.replace("[API-KEY]", password)
+    url = url.replace("[API-KEY]", apikey)
     headers = {
         "Accept": "application/json"
     }
-    auth = (username, password)
+    auth = (username, apikey)
 
     try:
         response = requests.get(url, headers=headers, auth=auth)
