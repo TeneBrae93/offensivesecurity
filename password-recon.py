@@ -1,6 +1,5 @@
 import requests
 import sys
-import subprocess
 import json
 
 def main():
@@ -15,9 +14,6 @@ def main():
     apikey = sys.argv[3]
 
     url = f"https://api.dehashed.com/search?query=domain:{target_domain}&size=10000"
-    url = url.replace("[DOMAIN]", target_domain)
-    url = url.replace("[USERNAME]", username)
-    url = url.replace("[API-KEY]", apikey)
     headers = {
         "Accept": "application/json"
     }
@@ -27,21 +23,18 @@ def main():
         response = requests.get(url, headers=headers, auth=auth)
         response.raise_for_status()
 
-        with open("dehashed_results.txt", "w") as file:
-            file.write(response.text)
-            try:
-                with open("dehashed_results.txt", "r") as file:
-                    data = json.load(file)
-                    entries = data["entries"]
-                    filtered_entries = [entry for entry in entries if entry.get("email") and entry.get("password")]
-                    formatted_entries = [f"{entry['email']}:{entry['password']}" for entry in filtered_entries]
-                    unique_entries = sorted(set(formatted_entries))
-                with open("emails_passwords.txt", "w") as file:
-                    file.write("\n".join(unique_entries))
-                print("Results saved to emails_passwords.txt")
-            except subprocess.CalledProcessError as e:
-                print(f"An error occurred: {e}")
-        print("Results saved to dehashed_results.txt")
+        data = response.json()
+        if "entries" in data and data["entries"]:
+            entries = data["entries"]
+            filtered_entries = [entry for entry in entries if entry.get("email") and entry.get("password")]
+            formatted_entries = [f"{entry['email']}:{entry['password']}" for entry in filtered_entries]
+            unique_entries = sorted(set(formatted_entries))
+
+            with open("emails_passwords.txt", "w") as file:
+                file.write("\n".join(unique_entries))
+            print("Results saved to emails_passwords.txt")
+        else:
+            print("The target domain does not have any dehashed results.")
     except requests.exceptions.RequestException as e:
         print(f"An error occurred: {e}")
 
