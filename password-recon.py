@@ -1,42 +1,103 @@
+import argparse
 import requests
 import sys
-import json
+
+def search_dehashed(api_key, domain):
+    url = "https://api.dehashed.com/v2/search"
+    headers = {
+        "Content-Type": "application/json",
+        "Dehashed-Api-Key": api_key
+    }
+
+    page = 1
+    size = 10000  # Max size allowed by the V2 API
+    max_results = 50000  # Hard limit for pagination mentioned in docs
+    
+    extracted_credentials = set()
+    
+    print(f"[*] Searching DeHashed for: {domain}...")
+
+    while True:
+        # Prevent exceeding the hard limit
+        if (page * size) > max_results:
+            print("[!] Pagination limit reached (50,000 records). Stopping early.")
+            break
+
+        payload = {
+            "query": domain,
+            "page": page,
+            "size": size,
+            "de_dupe": True
+        }
+
+        try:
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"[!] Error querying API: {e}")
+            if e.response is not None:
+                print(f"[!] Response: {e.response.text}")
+            sys.exit(1)
+
+        entries = data.get("entries")
+        
+        # If no entries are returned, we have reached the end
+        if not entries:
+            break
+
+        for entry in entries:
+            # Safely extract passwords, usernames, and emails
+            passwords = entry.get("password") or []
+            usernames = entry.get("username") or []
+            emails = entry.get("email") or []
+
+            # Filter out empty/null passwords to ensure we only get cleartext
+            valid_passwords = [p.strip() for p in passwords if p and p.strip()]
+            
+            if not valid_passwords:
+                continue
+
+            # Combine emails and usernames into one list of login IDs
+            logins = [u.strip() for u in (usernames + emails) if u and u.strip()]
+
+            if not logins:
+                continue
+
+            # Map all valid logins to their corresponding cleartext passwords
+            for login in logins:
+                for pwd in valid_passwords:
+                    extracted_credentials.add((login, pwd))
+
+        total_results = data.get("total", 0)
+        
+        # Stop paginating if we've fetched everything available
+        if (page * size) >= total_results:
+            break
+            
+        page += 1
+
+    return extracted_credentials
+
 
 def main():
-    if len(sys.argv) != 4:
-        print("Usage: python password-recon.py [TARGET-DOMAIN] [USERNAME] [API-KEY]")
-        print("Note: Requires an active DeHashed.com account and API Key")
-        print("Author: Tyler Ramsbey from Hack Smarter - https://hacksmarter.org")
-        return
+    parser = argparse.ArgumentParser(description="Query DeHashed V2 API for cleartext credentials.")
+    parser.add_argument("--api-key", required=True, help="Your DeHashed API Key")
+    parser.add_argument("--domain", required=True, help="The domain to search for (e.g., example.com)")
+    
+    args = parser.parse_args()
 
-    target_domain = sys.argv[1]
-    username = sys.argv[2]
-    apikey = sys.argv[3]
+    credentials = search_dehashed(args.api_key, args.domain)
 
-    url = f"https://api.dehashed.com/search?query=domain:{target_domain}&size=10000"
-    headers = {
-        "Accept": "application/json"
-    }
-    auth = (username, apikey)
+    if not credentials:
+        print("[-] No cleartext credentials found.")
+        sys.exit(0)
 
-    try:
-        response = requests.get(url, headers=headers, auth=auth)
-        response.raise_for_status()
+    print(f"\n[+] Found {len(credentials)} unique cleartext credentials:")
+    print("-" * 40)
+    for login, pwd in sorted(credentials):
+        print(f"{login}:{pwd}")
 
-        data = response.json()
-        if "entries" in data and data["entries"]:
-            entries = data["entries"]
-            filtered_entries = [entry for entry in entries if entry.get("email") and entry.get("password")]
-            formatted_entries = [f"{entry['email']}:{entry['password']}" for entry in filtered_entries]
-            unique_entries = sorted(set(formatted_entries))
-
-            with open("emails_passwords.txt", "w") as file:
-                file.write("\n".join(unique_entries))
-            print("Results saved to emails_passwords.txt")
-        else:
-            print("The target domain does not have any dehashed results.")
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
